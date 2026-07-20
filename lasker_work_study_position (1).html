@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Work-Study Office Assistant — Editable Layout</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;800&family=Bodoni+Moda:opsz,wght@6..96,500;6..96,700&family=Domine:wght@500;700&family=Libre+Franklin:wght@400;600;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=EB+Garamond:wght@400;500;600&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --accent:#0b4f8a;
+    --ink:#1d2530;
+    --muted:#5a6673;
+    --rule:#d7dee6;
+    --app-bg:#e9ecef;
+    /* Theme variables (JS swaps these) */
+    --font-display:Helvetica, Arial, sans-serif;
+    --font-body:Georgia, 'Times New Roman', serif;
+    --h1-size:26px;
+    --h2-transform:uppercase;
+    --h2-spacing:.06em;
+    --base-size:15px;
+    --sheet-bg:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--app-bg);font-family:Helvetica,Arial,sans-serif;color:var(--ink);}
+
+  /* ============ TOOLBAR ============ */
+  .toolbar{
+    position:sticky;top:0;z-index:50;
+    background:#fff;border-bottom:1px solid var(--rule);
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    padding:10px 20px;
+    box-shadow:0 1px 3px rgba(0,0,0,.06);
+  }
+  .tb-group{display:flex;align-items:center;gap:6px;}
+  .tb-label{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);}
+  select,input[type=range],input[type=color]{
+    font-family:inherit;font-size:13px;
+    border:1px solid var(--rule);border-radius:5px;background:#fff;color:var(--ink);
+  }
+  select{padding:6px 8px;cursor:pointer;}
+  input[type=range]{width:90px;padding:0;border:none;}
+  input[type=color]{width:34px;height:30px;padding:2px;cursor:pointer;}
+  .tb-spacer{margin-left:auto;}
+  .btn{
+    border:1px solid var(--rule);background:#fff;color:var(--ink);
+    border-radius:5px;padding:7px 13px;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .btn:hover{background:#f2f5f8;}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  .btn.primary:hover{filter:brightness(1.1);}
+  .btn:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .hint{font-size:12px;color:var(--muted);text-align:center;padding:8px 16px 0;}
+
+  /* ============ SHEET / WORKSPACE ============ */
+  .stage{display:flex;justify-content:center;padding:16px 12px 70px;overflow-x:auto;}
+  #workspace{
+    position:relative;
+    width:816px;               /* 8.5in @96dpi */
+    height:2112px;             /* 2 x 11in     */
+    background:var(--sheet-bg);
+    box-shadow:0 2px 10px rgba(0,0,0,.15);
+    flex:0 0 auto;
+  }
+  .page-divider{
+    position:absolute;left:0;right:0;top:1056px;
+    border-top:2px dashed #b8c2cc;
+    pointer-events:none;z-index:1;
+  }
+  .page-divider span{
+    position:absolute;right:8px;top:-22px;
+    font-size:11px;color:#9aa5b0;letter-spacing:.05em;
+    background:var(--sheet-bg);padding:2px 6px;
+  }
+  .page-num{
+    position:absolute;right:10px;font-size:11px;color:#b8c2cc;pointer-events:none;
+  }
+  #pn1{top:8px;} #pn2{top:1064px;}
+
+  /* ============ BOXES ============ */
+  .box{
+    position:absolute;
+    min-width:120px;min-height:36px;
+    width:688px;
+    padding:10px 14px;
+    border:1px dashed transparent;
+    border-radius:2px;
+    resize:both;overflow:auto;
+    background:transparent;
+    z-index:2;
+  }
+  .box:hover{border-color:#b9cde0;}
+  .box.active{border-color:var(--accent);}
+  .box-handle{
+    position:absolute;top:-14px;left:-1px;
+    display:none;align-items:center;gap:4px;
+    z-index:3;
+  }
+  .box:hover .box-handle,.box.active .box-handle{display:flex;}
+  .grip{
+    background:var(--accent);color:#fff;
+    font-size:10px;letter-spacing:.08em;
+    padding:2px 8px;border-radius:3px 3px 0 0;
+    cursor:grab;user-select:none;
+  }
+  .grip:active{cursor:grabbing;}
+  .box-del{
+    background:#c0392b;color:#fff;border:none;border-radius:3px 3px 0 0;
+    font-size:11px;line-height:1;padding:3px 7px;cursor:pointer;
+  }
+
+  /* ============ DOCUMENT TYPOGRAPHY ============ */
+  .box-content{outline:none;line-height:1.55;font-family:var(--font-body);font-size:var(--base-size);color:var(--ink);}
+  .box-content h1{
+    font-family:var(--font-display);font-size:var(--h1-size);
+    margin:0 0 4px;color:var(--accent);letter-spacing:-.01em;line-height:1.15;
+  }
+  .box-content .meta{color:var(--muted);font-size:.9em;margin:3px 0;}
+  .box-content h2{
+    font-family:var(--font-display);
+    font-size:.95em;letter-spacing:var(--h2-spacing);text-transform:var(--h2-transform);
+    color:var(--accent);border-bottom:1px solid var(--rule);
+    padding-bottom:4px;margin:4px 0 8px;
+  }
+  .box-content h3{font-family:var(--font-display);font-size:.92em;margin:10px 0 4px;}
+  .box-content p{margin:6px 0;}
+  .box-content ul{margin:4px 0 8px;padding-left:20px;}
+  .box-content li{margin:3px 0;}
+
+  /* ============ EXPORT MODE ============ */
+  body.exporting .box{border-color:transparent!important;resize:none;overflow:visible;}
+  body.exporting .box-handle,body.exporting .page-divider,body.exporting .page-num{display:none!important;}
+
+  @media print{
+    .toolbar,.hint,.page-divider,.page-num,.box-handle{display:none!important;}
+    body{background:#fff;}
+    .stage{padding:0;}
+    #workspace{box-shadow:none;}
+    .box{border-color:transparent!important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="tb-group">
+    <span class="tb-label">Style</span>
+    <select id="themeSel" onchange="applyTheme(this.value)">
+      <option value="classic">Classic (current)</option>
+      <option value="nyt">NYT Editorial</option>
+      <option value="magazine">Magazine / Vogue</option>
+      <option value="hbr">Harvard Business Review</option>
+      <option value="garamond">Literary Garamond</option>
+    </select>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Size</span>
+    <input type="range" id="sizeRange" min="12" max="19" value="15" oninput="setFontSize(this.value)">
+    <span id="sizeVal" style="font-size:12px;color:var(--muted);width:34px;">15px</span>
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Page</span>
+    <input type="color" id="bgPick" value="#ffffff" oninput="setBg(this.value)" title="Page background">
+  </div>
+  <div class="tb-group">
+    <span class="tb-label">Accent</span>
+    <input type="color" id="accentPick" value="#0b4f8a" oninput="setAccent(this.value)" title="Heading color">
+  </div>
+  <button class="btn" onclick="addBox()">+ Add box</button>
+  <span class="tb-spacer"></span>
+  <button class="btn" onclick="downloadDOC()">Download DOC</button>
+  <button class="btn" onclick="window.print()">Print</button>
+  <button class="btn primary" onclick="downloadPDF()">Download PDF</button>
+</div>
+<p class="hint">Click any text to edit. Hover a box and drag the <strong>⋮⋮ MOVE</strong> tab to reposition it anywhere. Drag a box's bottom-right corner to resize. Everything stays within 2 pages.</p>
+
+<div class="stage">
+<div id="workspace">
+  <span class="page-num" id="pn1">PAGE 1</span>
+  <span class="page-num" id="pn2">PAGE 2</span>
+  <div class="page-divider"><span>PAGE BREAK — keep boxes clear of this line</span></div>
+
+  <div class="box" data-order="1">
+    <div class="box-content" contenteditable="true">
+      <h1>Work-Study Office Assistant</h1>
+      <p class="meta"><strong>Location:</strong> Mary Woodard Lasker Biomedical Research Building, Columbia University Medical Center — Room 540</p>
+      <p class="meta"><strong>Position Type:</strong> Part-time, Work-Study (Academic Year)</p>
+    </div>
+  </div>
+
+  <div class="box" data-order="2">
+    <div class="box-content" contenteditable="true">
+      <h2>About the Role</h2>
+      <p>The Columbia Engineering administrative team at the Mary Woodard Lasker Biomedical Research Building is seeking a motivated and detail-oriented Work-Study Office Assistant. This position offers hands-on experience supporting research administration, procurement, finance, facilities coordination, and daily office operations within a collaborative academic environment. Comprehensive training is provided, making this an excellent opportunity for students interested in higher education administration, operations, or business support.</p>
+    </div>
+  </div>
+
+  <div class="box" data-order="3">
+    <div class="box-content" contenteditable="true">
+      <h2>Key Responsibilities</h2>
+      <h3>Routine Administrative Tasks</h3>
+      <ul>
+        <li>Greet and assist visitors, students, and faculty in the main office.</li>
+        <li>Maintain cleanliness and organization in shared spaces (office areas, conference rooms, pantry).</li>
+        <li>Receive, organize, track, and distribute incoming mail and laboratory deliveries.</li>
+        <li>Answer general inquiries in person, via email, or by phone.</li>
+        <li>Assist with event preparation and setup when needed.</li>
+        <li>Assist faculty, researchers, and students with package tracking and general ordering inquiries.</li>
+      </ul>
+      <h3>Department-Specific Support (Training Provided)</h3>
+      <ul>
+        <li>Assist with financial reconciliation activities to support departmental purchasing and budget tracking.</li>
+        <li>Support purchasing activities by monitoring orders, updating tracking systems, and assisting with procurement workflows using Quartzy and other university systems.</li>
+        <li>Help maintain departmental directories, FAQs, and training materials.</li>
+        <li>Back up team members in specialized tasks (e.g., event lookups, invoice matching, facilities task follow-ups).</li>
+      </ul>
+      <h3>Other Duties as Assigned</h3>
+      <ul>
+        <li>Assist with updating spreadsheets, databases, and analytics tables.</li>
+        <li>Create quick guides and training documentation for future staff.</li>
+        <li>Develop quick-reference guides and training documentation to support future staff and improve departmental workflows.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box" data-order="4">
+    <div class="box-content" contenteditable="true">
+      <h2>Training &amp; Onboarding</h2>
+      <p>Work-Study Assistants follow a structured five-day training program covering:</p>
+      <ul>
+        <li>Office tour and introductions to Lasker spaces (offices, labs, student areas, conference rooms, loading dock).</li>
+        <li>Access setup (swipe cards, calendars, vendor logins, departmental folders).</li>
+        <li>Core Administrative Operations: recon, Quartzy ordering, event bookings, package handling.</li>
+        <li>Backup procedures and key contacts for facilities, finance, and deliveries.</li>
+        <li>Independent task management and performance feedback.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box" data-order="5">
+    <div class="box-content" contenteditable="true">
+      <h2>Skills &amp; Qualifications</h2>
+      <h3>Required</h3>
+      <ul>
+        <li>Current Columbia University student eligible for Federal Work-Study.</li>
+        <li>Reliable, punctual, and able to work independently after training.</li>
+        <li>Strong communication and organizational skills.</li>
+        <li>Comfortable learning new software systems.</li>
+        <li>Ability to manage multiple tasks while maintaining attention to detail.</li>
+        <li>Comfortable working independently and asking questions when needed.</li>
+      </ul>
+      <h3>Preferred</h3>
+      <ul>
+        <li>Prior office, customer service, or administrative experience.</li>
+        <li>Familiarity with spreadsheets (Google Sheets/Excel).</li>
+        <li>Attention to detail in data entry and record keeping.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box" data-order="6">
+    <div class="box-content" contenteditable="true">
+      <h2>Work Schedule &amp; Compensation</h2>
+      <ul>
+        <li>Flexible hours within standard business times (Mon–Fri, 9 AM–5 PM).</li>
+        <li>Approximately 10–15 hours per week.</li>
+        <li>Hourly wage in accordance with Columbia University work-study rates.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="box" data-order="7">
+    <div class="box-content" contenteditable="true">
+      <h2>How to Apply</h2>
+      <p>Submit your résumé and a brief statement of interest to <strong>[Department Contact Email]</strong>. Please include your availability for the semester.</p>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+/* ============ THEMES ============ */
+const THEMES = {
+  classic: {
+    display:"Helvetica, Arial, sans-serif",
+    body:"Georgia, 'Times New Roman', serif",
+    h1:"26px", transform:"uppercase", spacing:".06em"
+  },
+  nyt: {
+    display:"'Domine', Georgia, serif",
+    body:"Georgia, 'Times New Roman', serif",
+    h1:"30px", transform:"none", spacing:"0"
+  },
+  magazine: {
+    display:"'Bodoni Moda', 'Playfair Display', serif",
+    body:"'Source Serif 4', Georgia, serif",
+    h1:"32px", transform:"uppercase", spacing:".12em"
+  },
+  hbr: {
+    display:"'Libre Franklin', Helvetica, sans-serif",
+    body:"'Source Serif 4', Georgia, serif",
+    h1:"27px", transform:"none", spacing:"0"
+  },
+  garamond: {
+    display:"'Cormorant Garamond', Garamond, serif",
+    body:"'EB Garamond', Garamond, serif",
+    h1:"31px", transform:"none", spacing:".02em"
+  }
+};
+function applyTheme(name){
+  const t = THEMES[name];
+  const r = document.documentElement.style;
+  r.setProperty('--font-display', t.display);
+  r.setProperty('--font-body', t.body);
+  r.setProperty('--h1-size', t.h1);
+  r.setProperty('--h2-transform', t.transform);
+  r.setProperty('--h2-spacing', t.spacing);
+}
+function setFontSize(v){
+  document.documentElement.style.setProperty('--base-size', v + 'px');
+  document.getElementById('sizeVal').textContent = v + 'px';
+}
+function setBg(v){ document.documentElement.style.setProperty('--sheet-bg', v); }
+function setAccent(v){ document.documentElement.style.setProperty('--accent', v); }
+
+/* ============ DRAG ENGINE ============ */
+const ws = document.getElementById('workspace');
+const PAGE_H = 1056, TOTAL_H = 2112, WS_W = 816, MARGIN = 48;
+
+function makeInteractive(box){
+  // build handle
+  const handle = document.createElement('div');
+  handle.className = 'box-handle';
+  handle.innerHTML = '<span class="grip">⋮⋮ MOVE</span><button class="box-del" title="Delete box">✕</button>';
+  box.appendChild(handle);
+  handle.querySelector('.box-del').addEventListener('click', () => {
+    if (confirm('Delete this box?')) box.remove();
+  });
+
+  const grip = handle.querySelector('.grip');
+  grip.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    box.classList.add('active');
+    const wsRect = ws.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    const origL = box.offsetLeft, origT = box.offsetTop;
+    grip.setPointerCapture(e.pointerId);
+
+    function onMove(ev){
+      let nl = origL + (ev.clientX - startX);
+      let nt = origT + (ev.clientY - startY);
+      // keep on the sheet, never past page 2
+      nl = Math.max(0, Math.min(nl, WS_W - box.offsetWidth));
+      nt = Math.max(0, Math.min(nt, TOTAL_H - box.offsetHeight));
+      box.style.left = nl + 'px';
+      box.style.top  = nt + 'px';
+    }
+    function onUp(){
+      box.classList.remove('active');
+      grip.removeEventListener('pointermove', onMove);
+      grip.removeEventListener('pointerup', onUp);
+    }
+    grip.addEventListener('pointermove', onMove);
+    grip.addEventListener('pointerup', onUp);
+  });
+
+  box.addEventListener('focusin',  () => box.classList.add('active'));
+  box.addEventListener('focusout', () => box.classList.remove('active'));
+}
+
+/* Initial layout: stack boxes top-to-bottom, spill to page 2 cleanly */
+function layoutInitial(){
+  const boxes = [...ws.querySelectorAll('.box')].sort((a,b)=>+a.dataset.order - +b.dataset.order);
+  let y = MARGIN;
+  boxes.forEach(box => {
+    box.style.left = ((WS_W - box.offsetWidth) / 2) + 'px';
+    const h = box.offsetHeight;
+    // if this box would cross the page break, push it to page 2
+    if (y < PAGE_H && y + h > PAGE_H - 24) y = PAGE_H + MARGIN;
+    box.style.top = y + 'px';
+    y += h + 14;
+  });
+}
+
+function addBox(){
+  const box = document.createElement('div');
+  box.className = 'box';
+  box.style.width = '320px';
+  box.style.left = '248px';
+  box.style.top  = (ws.scrollTop ? ws.scrollTop : 200) + 'px';
+  box.innerHTML = '<div class="box-content" contenteditable="true"><h2>New Section</h2><p>Type here…</p></div>';
+  ws.appendChild(box);
+  makeInteractive(box);
+  box.querySelector('.box-content').focus();
+}
+
+/* ============ EXPORTS ============ */
+function downloadPDF(){
+  document.body.classList.add('exporting');
+  const opt = {
+    margin: 0,
+    filename: 'Lasker_WorkStudy_Office_Assistant.pdf',
+    image: { type:'jpeg', quality:0.98 },
+    html2canvas: { scale:2, useCORS:true, windowWidth:816 },
+    jsPDF: { unit:'in', format:'letter', orientation:'portrait' }
+  };
+  html2pdf().set(opt).from(ws).save()
+    .then(() => document.body.classList.remove('exporting'))
+    .catch(() => document.body.classList.remove('exporting'));
+}
+
+function downloadDOC(){
+  // flow boxes into normal document order: by page, then top, then left
+  const boxes = [...ws.querySelectorAll('.box')].sort((a,b) => {
+    const pa = a.offsetTop >= PAGE_H ? 1 : 0, pb = b.offsetTop >= PAGE_H ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    if (Math.abs(a.offsetTop - b.offsetTop) > 20) return a.offsetTop - b.offsetTop;
+    return a.offsetLeft - b.offsetLeft;
+  });
+  const cs = getComputedStyle(document.documentElement);
+  const accent = cs.getPropertyValue('--accent').trim();
+  const bodyF  = cs.getPropertyValue('--font-body').trim();
+  const dispF  = cs.getPropertyValue('--font-display').trim();
+  const size   = cs.getPropertyValue('--base-size').trim();
+  const bg     = cs.getPropertyValue('--sheet-bg').trim();
+
+  const content = boxes.map(b => b.querySelector('.box-content').innerHTML).join('\n');
+  const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' " +
+    "xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>" +
+    "<head><meta charset='utf-8'><title>Work-Study Office Assistant</title><style>" +
+    "body{font-family:" + bodyF + ";font-size:" + size + ";line-height:1.5;background:" + bg + ";} " +
+    "h1{font-family:" + dispF + ";color:" + accent + ";} " +
+    "h2{font-family:" + dispF + ";color:" + accent + ";font-size:12pt;border-bottom:1pt solid #d7dee6;} " +
+    "h3{font-family:" + dispF + ";font-size:11pt;}" +
+    "</style></head><body>";
+  const blob = new Blob(['\ufeff', header + content + '</body></html>'], { type:'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'Lasker_WorkStudy_Office_Assistant.doc';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/* ============ INIT ============ */
+window.addEventListener('load', () => {
+  document.querySelectorAll('.box').forEach(makeInteractive);
+  layoutInitial();
+});
+</script>
+</body>
+</html>
